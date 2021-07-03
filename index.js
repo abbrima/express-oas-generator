@@ -3,30 +3,36 @@
  * @module index
  */
 
-require('./index');
+require("./index");
 
-const _merge = require('lodash.merge');
-const fs = require('fs');
-const path = require('path');
-const swaggerUi = require('swagger-ui-express');
-const utils = require('./lib/utils');
+const _merge = require("lodash.merge");
+const fs = require("fs");
+const path = require("path");
+const swaggerUi = require("swagger-ui-express");
+const utils = require("./lib/utils");
 
-const { generateMongooseModelsSpec } = require('./lib/mongoose');
-const { generateTagsSpec, matchingTags } = require('./lib/tags');
-const { convertOpenApiVersionToV3, getSpecByVersion, versions } = require('./lib/openapi');
-const processors = require('./lib/processors');
-const listEndpoints = require('express-list-endpoints');
-const { logger } = require('./lib/logger');
-const { ensureDirectoryExistence } = require('./lib/file');
+const { generateMongooseModelsSpec } = require("./lib/mongoose");
+const { generateTagsSpec, matchingTags } = require("./lib/tags");
+const {
+  convertOpenApiVersionToV3,
+  getSpecByVersion,
+  versions,
+} = require("./lib/openapi");
+const processors = require("./lib/processors");
+const listEndpoints = require("express-list-endpoints");
+const { logger } = require("./lib/logger");
+const { ensureDirectoryExistence } = require("./lib/file");
 
 const SPEC_OUTPUT_FILE_BEHAVIOR = {
-  PRESERVE: 'PRESERVE',
-  RECREATE: 'RECREATE'
+  PRESERVE: "PRESERVE",
+  RECREATE: "RECREATE",
 };
-const DEFAULT_SWAGGER_UI_SERVE_PATH = 'api-docs';
-const DEFAULT_IGNORE_NODE_ENVIRONMENTS = ['production'];
+const DEFAULT_SWAGGER_UI_SERVE_PATH = "api-docs";
+const DEFAULT_IGNORE_NODE_ENVIRONMENTS = ["production"];
 
-const UNDEFINED_NODE_ENV_ERROR = ignoredNodeEnvironments => `WARNING!!! process.env.NODE_ENV is not defined.\
+const UNDEFINED_NODE_ENV_ERROR = (
+  ignoredNodeEnvironments
+) => `WARNING!!! process.env.NODE_ENV is not defined.\
 To disable the module set process.env.NODE_ENV to any of the supplied ignoredNodeEnvironments: ${ignoredNodeEnvironments.join()}`;
 
 const WRONG_MIDDLEWARE_ORDER_ERROR = `
@@ -64,7 +70,7 @@ let specOutputPath;
 let specOutputFileBehavior;
 /**
  * @type { typeof import('./index').SwaggerUiOptions }
-*/
+ */
 let swaggerDocumentOptions;
 
 /**
@@ -86,12 +92,11 @@ let responseMiddlewareHasBeenApplied = false;
  *
  */
 function updateSpecFromPackage() {
-
   /* eslint global-require : off */
   packageInfo = fs.existsSync(packageJsonPath) ? require(packageJsonPath) : {};
 
   spec.info = spec.info || {};
-  
+
   if (packageInfo.name) {
     spec.info.title = packageInfo.name;
   }
@@ -102,11 +107,11 @@ function updateSpecFromPackage() {
     spec.info.license = { name: packageInfo.license };
   }
 
-  packageInfo.baseUrlPath = packageInfo.baseUrlPath || '';
+  packageInfo.baseUrlPath = packageInfo.baseUrlPath || "";
   const v2link = `[${versions.OPEN_API_V2}](${packageInfo.baseUrlPath}/api-spec/${versions.OPEN_API_V2})`;
   const v3link = `[${versions.OPEN_API_V3}](${packageInfo.baseUrlPath}/api-spec/${versions.OPEN_API_V3})`;
   spec.info.description = `Specification JSONs: ${v2link}, ${v3link}.`;
-  if (packageInfo.baseUrlPath !== '') {
+  if (packageInfo.baseUrlPath !== "") {
     spec.basePath = packageInfo.baseUrlPath;
     spec.info.description += ` Base url: [${packageInfo.baseUrlPath}](${packageInfo.baseUrlPath})`;
   }
@@ -114,7 +119,6 @@ function updateSpecFromPackage() {
   if (packageInfo.description) {
     spec.info.description += `\n\n${packageInfo.description}`;
   }
-
 }
 
 /**
@@ -126,7 +130,7 @@ function apiSpecMiddleware(version) {
   return (req, res) => {
     getSpecByVersion(spec, version, (err, openApiSpec) => {
       if (!err) {
-        res.setHeader('Content-Type', 'application/json');
+        res.setHeader("Content-Type", "application/json");
         res.send(JSON.stringify(openApiSpec, null, 2));
       }
     });
@@ -142,7 +146,7 @@ function swaggerServeMiddleware(version) {
   return (req, res) => {
     getSpecByVersion(spec, version, (err, openApiSpec) => {
       if (!err) {
-        res.setHeader('Content-Type', 'text/html');
+        res.setHeader("Content-Type", "text/html");
         swaggerUi.setup(openApiSpec, swaggerDocumentOptions)(req, res);
       }
     });
@@ -153,12 +157,18 @@ function swaggerServeMiddleware(version) {
  * @description Applies spec middlewares
  * @param version Available open api versions: 'v2' (default if empty) or 'v3'.
  */
-function applySpecMiddlewares(version = '') {
-  const apiSpecBasePath = packageInfo.baseUrlPath.concat('/api-spec');
-  const baseSwaggerServePath = packageInfo.baseUrlPath.concat('/' + swaggerUiServePath);
+function applySpecMiddlewares(version = "") {
+  const apiSpecBasePath = packageInfo.baseUrlPath.concat("/api-spec");
+  const baseSwaggerServePath = packageInfo.baseUrlPath.concat(
+    "/" + swaggerUiServePath
+  );
 
-  app.use(apiSpecBasePath.concat('/' + version), apiSpecMiddleware(version));
-  app.use(baseSwaggerServePath.concat('/' + version), swaggerUi.serve, swaggerServeMiddleware(version));
+  app.use(apiSpecBasePath.concat("/" + version), apiSpecMiddleware(version));
+  app.use(
+    baseSwaggerServePath.concat("/" + version),
+    swaggerUi.serve,
+    swaggerServeMiddleware(version)
+  );
 }
 
 /**
@@ -167,15 +177,15 @@ function applySpecMiddlewares(version = '') {
  * @returns void
  */
 function prepareSpec() {
-  spec = { swagger: '2.0', paths: {} };
+  spec = { swagger: "2.0", paths: {} };
 
   const endpoints = listEndpoints(app);
-  endpoints.forEach(endpoint => {
+  endpoints.forEach((endpoint) => {
     const params = [];
     let path = endpoint.path;
     const matches = path.match(/:([^/]+)/g);
     if (matches) {
-      matches.forEach(found => {
+      matches.forEach((found) => {
         const paramName = found.substr(1);
         path = path.replace(found, `{${paramName}}`);
         params.push(paramName);
@@ -188,17 +198,18 @@ function prepareSpec() {
 
     spec.tags = tagsSpecs || [];
 
-    endpoint.methods.forEach(m => {
+    endpoint.methods.forEach((m) => {
       spec.paths[path][m.toLowerCase()] = {
         summary: path,
-        consumes: ['application/json'],
-        parameters: params.map(p => ({
-          name: p,
-          in: 'path',
-          required: true,
-        })) || [],
+        consumes: ["application/json"],
+        parameters:
+          params.map((p) => ({
+            name: p,
+            in: "path",
+            required: true,
+          })) || [],
         responses: {},
-        tags: matchingTags(tagsSpecs || [], path)
+        tags: matchingTags(tagsSpecs || [], path),
       };
     });
   });
@@ -217,11 +228,11 @@ function serveApiDocs() {
   prepareSpec();
 
   applySpecMiddlewares(versions.OPEN_API_V2);
-  
+
   applySpecMiddlewares(versions.OPEN_API_V3);
 
   // Base path middleware should be applied after specific versions
-  applySpecMiddlewares(); 
+  applySpecMiddlewares();
 }
 
 /**
@@ -232,9 +243,9 @@ function serveApiDocs() {
 function patchSpec(predefinedSpec) {
   return !predefinedSpec
     ? spec
-    : typeof predefinedSpec === 'object'
-      ? utils.sortObject(_merge(spec, predefinedSpec || {}))
-      : predefinedSpec(spec);
+    : typeof predefinedSpec === "object"
+    ? utils.sortObject(_merge(spec, predefinedSpec || {}))
+    : predefinedSpec(spec);
 }
 
 /**
@@ -247,11 +258,11 @@ function getPathKey(req) {
     return req.url;
   }
 
-  const url = req.url.split('?')[0];
+  const url = req.url.split("?")[0];
   const pathKeys = Object.keys(spec.paths);
   for (let i = 0; i < pathKeys.length; i += 1) {
     const pathKey = pathKeys[i];
-    if (url.match(`${pathKey.replace(/{([^/]+)}/g, '(?:([^\\\\/]+?))')}/?$`)) {
+    if (url.match(`${pathKey.replace(/{([^/]+)}/g, "(?:([^\\\\/]+?))")}/?$`)) {
       return pathKey;
     }
   }
@@ -264,12 +275,12 @@ function getPathKey(req) {
  * @returns {{method: *, pathKey: *}|undefined}
  */
 function getMethod(req) {
-  if (req.url.startsWith('/api-')) {
+  if (req.url.startsWith("/api-")) {
     return undefined;
   }
 
   const m = req.method.toLowerCase();
-  if (m === 'options') {
+  if (m === "options") {
     return undefined;
   }
 
@@ -291,7 +302,7 @@ function updateSchemesAndHost(req) {
     spec.schemes.push(req.protocol);
   }
   if (!spec.host) {
-    spec.host = req.get('host');
+    spec.host = req.get("host");
   }
 }
 
@@ -299,8 +310,9 @@ function updateSchemesAndHost(req) {
  * @description Generates definitions spec from mongoose models
  */
 function updateDefinitionsSpec(mongooseModels) {
-  const validMongooseModels = Array.isArray(mongooseModels) && mongooseModels.length > 0;
-  
+  const validMongooseModels =
+    Array.isArray(mongooseModels) && mongooseModels.length > 0;
+
   if (validMongooseModels && !mongooseModelsSpecs) {
     mongooseModelsSpecs = generateMongooseModelsSpec(mongooseModels);
   }
@@ -332,8 +344,6 @@ function loadSpecOutputPathContent() {
   predefinedSpec = JSON.parse(specOutputFileContent);
 }
 
-
-
 /**
  * @description Persists OpenAPI content to spec output file
  */
@@ -342,17 +352,20 @@ function writeSpecToOutputFile() {
     return;
   }
 
-  fs.writeFileSync(specOutputPath, JSON.stringify(spec, null, 2), 'utf8');
+  fs.writeFileSync(specOutputPath, JSON.stringify(spec, null, 2), "utf8");
 
   convertOpenApiVersionToV3(spec, (err, specV3) => {
     if (!err) {
       const parsedSpecOutputPath = path.parse(specOutputPath);
-      const {name, ext} = parsedSpecOutputPath;
-      parsedSpecOutputPath.base = name.concat('_').concat(versions.OPEN_API_V3).concat(ext);
-      
+      const { name, ext } = parsedSpecOutputPath;
+      parsedSpecOutputPath.base = name
+        .concat("_")
+        .concat(versions.OPEN_API_V3)
+        .concat(ext);
+
       const v3Path = path.format(parsedSpecOutputPath);
-      
-      fs.writeFileSync(v3Path, JSON.stringify(specV3, null, 2), 'utf8');
+
+      fs.writeFileSync(v3Path, JSON.stringify(specV3, null, 2), "utf8");
     }
     /** TODO - Log that open api v3 could not be generated */
   });
@@ -360,53 +373,58 @@ function writeSpecToOutputFile() {
 
 /**
  * @type { typeof import('./index').handleResponses }
-*/
-function handleResponses(expressApp, 
-  options = { 
-    swaggerUiServePath: DEFAULT_SWAGGER_UI_SERVE_PATH, 
-    specOutputPath: undefined, 
-    predefinedSpec: {}, 
-    writeIntervalMs: 0, 
-    mongooseModels: [], 
+ */
+function handleResponses(
+  expressApp,
+  options = {
+    swaggerUiServePath: DEFAULT_SWAGGER_UI_SERVE_PATH,
+    specOutputPath: undefined,
+    predefinedSpec: {},
+    writeIntervalMs: 0,
+    mongooseModels: [],
     tags: undefined,
     ignoredNodeEnvironments: DEFAULT_IGNORE_NODE_ENVIRONMENTS,
     alwaysServeDocs: undefined,
     specOutputFileBehavior: SPEC_OUTPUT_FILE_BEHAVIOR.RECREATE,
-    swaggerDocumentOptions: {}
-  }) {
-
-  ignoredNodeEnvironments = options.ignoredNodeEnvironments || DEFAULT_IGNORE_NODE_ENVIRONMENTS;
-  const isEnvironmentIgnored = ignoredNodeEnvironments.includes(process.env.NODE_ENV || '');
+    swaggerDocumentOptions: {},
+  }
+) {
+  ignoredNodeEnvironments =
+    options.ignoredNodeEnvironments || DEFAULT_IGNORE_NODE_ENVIRONMENTS;
+  const isEnvironmentIgnored = ignoredNodeEnvironments.includes(
+    process.env.NODE_ENV || ""
+  );
   serveDocs = options.alwaysServeDocs;
-  
+
   if (serveDocs === undefined) {
     serveDocs = !isEnvironmentIgnored;
   }
-  
+
   if (!process.env.NODE_ENV) {
     logger.warn(UNDEFINED_NODE_ENV_ERROR(ignoredNodeEnvironments));
   }
-  
+
   /**
    * save the `expressApp` to our local `app` variable.
    * Used here, but not in `handleRequests`,
    * because this comes before it.
    */
   app = expressApp;
-  swaggerUiServePath = options.swaggerUiServePath || DEFAULT_SWAGGER_UI_SERVE_PATH;
+  swaggerUiServePath =
+    options.swaggerUiServePath || DEFAULT_SWAGGER_UI_SERVE_PATH;
   predefinedSpec = options.predefinedSpec || {};
   specOutputPath = options.specOutputPath;
   specOutputFileBehavior = options.specOutputFileBehavior;
   swaggerDocumentOptions = options.swaggerDocumentOptions;
-  
+
   loadSpecOutputPathContent();
   updateDefinitionsSpec(options.mongooseModels);
   updateTagsSpec(options.tags || options.mongooseModels);
-  
+
   if (isEnvironmentIgnored) {
     return;
   }
-  
+
   responseMiddlewareHasBeenApplied = true;
 
   /** middleware to handle RESPONSES */
@@ -418,7 +436,6 @@ function handleResponses(expressApp,
           writeSpecToOutputFile();
         });
       }
-      
     } catch (e) {
       /** TODO - shouldn't we do something here? */
     } finally {
@@ -432,9 +449,10 @@ function handleResponses(expressApp,
  * @type { typeof import('./index').handleRequests }
  */
 function handleRequests() {
-  
-  const isIgnoredEnvironment = ignoredNodeEnvironments.includes(process.env.NODE_ENV);
-  if (serveDocs || !isIgnoredEnvironment) {      
+  const isIgnoredEnvironment = ignoredNodeEnvironments.includes(
+    process.env.NODE_ENV
+  );
+  if (serveDocs || !isIgnoredEnvironment) {
     /** forward options to `serveApiDocs`: */
     serveApiDocs();
   }
@@ -442,7 +460,7 @@ function handleRequests() {
   if (isIgnoredEnvironment) {
     return;
   }
-  
+
   /** make sure the middleware placement order (by the user) is correct */
   if (responseMiddlewareHasBeenApplied !== true) {
     throw new Error(WRONG_MIDDLEWARE_ORDER_ERROR);
@@ -454,12 +472,16 @@ function handleRequests() {
   if (specOutputPath) {
     ensureDirectoryExistence(specOutputPath);
   }
-  
+
   /** middleware to handle REQUESTS */
   app.use((req, res, next) => {
     try {
       const methodAndPathKey = getMethod(req);
-      if (methodAndPathKey && methodAndPathKey.method && methodAndPathKey.pathKey) {
+      if (
+        methodAndPathKey &&
+        methodAndPathKey.method &&
+        methodAndPathKey.pathKey
+      ) {
         const method = methodAndPathKey.method;
         updateSchemesAndHost(req);
         processors.processPath(req, method, methodAndPathKey.pathKey);
@@ -493,7 +515,19 @@ function handleRequests() {
 /**
  * @type { typeof import('./index').init }
  */
-function init(aApp, aPredefinedSpec = {}, aSpecOutputPath = undefined, aWriteInterval = 0, aSwaggerUiServePath = DEFAULT_SWAGGER_UI_SERVE_PATH, aMongooseModels = [], aTags = undefined, aIgnoredNodeEnvironments = DEFAULT_IGNORE_NODE_ENVIRONMENTS, aAlwaysServeDocs = undefined, aSpecOutputFileBehavior = SPEC_OUTPUT_FILE_BEHAVIOR.RECREATE, aSwaggerDocumentOptions = {}) {
+function init(
+  aApp,
+  aPredefinedSpec = {},
+  aSpecOutputPath = undefined,
+  aWriteInterval = 0,
+  aSwaggerUiServePath = DEFAULT_SWAGGER_UI_SERVE_PATH,
+  aMongooseModels = [],
+  aTags = undefined,
+  aIgnoredNodeEnvironments = DEFAULT_IGNORE_NODE_ENVIRONMENTS,
+  aAlwaysServeDocs = undefined,
+  aSpecOutputFileBehavior = SPEC_OUTPUT_FILE_BEHAVIOR.RECREATE,
+  aSwaggerDocumentOptions = {}
+) {
   handleResponses(aApp, {
     swaggerUiServePath: aSwaggerUiServePath,
     specOutputPath: aSpecOutputPath,
@@ -504,7 +538,7 @@ function init(aApp, aPredefinedSpec = {}, aSpecOutputPath = undefined, aWriteInt
     ignoredNodeEnvironments: aIgnoredNodeEnvironments,
     alwaysServeDocs: aAlwaysServeDocs,
     specOutputFileBehavior: aSpecOutputFileBehavior,
-    swaggerDocumentOptions: aSwaggerDocumentOptions
+    swaggerDocumentOptions: aSwaggerDocumentOptions,
   });
   setTimeout(() => handleRequests(), 1000);
 }
@@ -519,7 +553,7 @@ const getSpec = () => {
 /**
  * @type { typeof import('./index').getSpecV3 }
  */
-const getSpecV3 = callback => {
+const getSpecV3 = (callback) => {
   convertOpenApiVersionToV3(getSpec(), callback);
 };
 
@@ -528,7 +562,7 @@ const getSpecV3 = callback => {
  *
  * @param pkgInfoPath  path to package.json
  */
-const setPackageInfoPath = pkgInfoPath => {
+const setPackageInfoPath = (pkgInfoPath) => {
   packageJsonPath = `${process.cwd()}/${pkgInfoPath}/package.json`;
 };
 
@@ -539,5 +573,5 @@ module.exports = {
   getSpec,
   getSpecV3,
   setPackageInfoPath,
-  SPEC_OUTPUT_FILE_BEHAVIOR
+  SPEC_OUTPUT_FILE_BEHAVIOR,
 };
